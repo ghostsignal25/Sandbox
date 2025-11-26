@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conway's Game of Life</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        h1 {
+            color: white;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        canvas {
+            border: 2px solid #333;
+            cursor: crosshair;
+            display: block;
+            margin-bottom: 20px;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background: #667eea;
+            color: white;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button.danger {
+            background: #e74c3c;
+        }
+
+        button.danger:hover {
+            background: #c0392b;
+        }
+
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 5px;
+        }
+
+        .speed-control label {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .speed-control input {
+            width: 150px;
+        }
+
+        .info {
+            text-align: center;
+            color: #555;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .generation {
+            font-weight: 600;
+            color: #667eea;
+            font-size: 18px;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Conway's Game of Life</h1>
+
+    <div class="container">
+        <div class="generation">Generation: <span id="generation">0</span></div>
+
+        <canvas id="gameCanvas"></canvas>
+
+        <div class="controls">
+            <button id="startBtn">Start</button>
+            <button id="stepBtn">Step</button>
+            <button id="clearBtn" class="danger">Clear</button>
+            <button id="randomBtn">Random</button>
+        </div>
+
+        <div class="speed-control">
+            <label for="speedRange">Speed:</label>
+            <input type="range" id="speedRange" min="1" max="20" value="10">
+            <span id="speedValue">10</span>
+        </div>
+
+        <div class="info">
+            Click on cells to toggle them | Start/Stop to run simulation
+        </div>
+    </div>
+
+    <script>
+        class GameOfLife {
+            constructor(canvasId, rows, cols, cellSize) {
+                this.canvas = document.getElementById(canvasId);
+                this.ctx = this.canvas.getContext('2d');
+                this.rows = rows;
+                this.cols = cols;
+                this.cellSize = cellSize;
+
+                this.canvas.width = cols * cellSize;
+                this.canvas.height = rows * cellSize;
+
+                this.grid = this.createGrid();
+                this.running = false;
+                this.generation = 0;
+                this.speed = 10; // Updates per second
+
+                this.setupEventListeners();
+                this.draw();
+            }
+
+            createGrid() {
+                return Array(this.rows).fill(null).map(() =>
+                    Array(this.cols).fill(false)
+                );
+            }
+
+            setupEventListeners() {
+                this.canvas.addEventListener('click', (e) => {
+                    const rect = this.canvas.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    const col = Math.floor(x / this.cellSize);
+                    const row = Math.floor(y / this.cellSize);
+
+                    if (row >= 0 && row < this.rows && col >= 0 && col < this.cols) {
+                        this.grid[row][col] = !this.grid[row][col];
+                        this.draw();
+                    }
+                });
+            }
+
+            draw() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+                // Draw grid lines
+                this.ctx.strokeStyle = '#ddd';
+                this.ctx.lineWidth = 1;
+
+                for (let i = 0; i <= this.rows; i++) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(0, i * this.cellSize);
+                    this.ctx.lineTo(this.canvas.width, i * this.cellSize);
+                    this.ctx.stroke();
+                }
+
+                for (let i = 0; i <= this.cols; i++) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(i * this.cellSize, 0);
+                    this.ctx.lineTo(i * this.cellSize, this.canvas.height);
+                    this.ctx.stroke();
+                }
+
+                // Draw cells
+                for (let row = 0; row < this.rows; row++) {
+                    for (let col = 0; col < this.cols; col++) {
+                        if (this.grid[row][col]) {
+                            this.ctx.fillStyle = '#667eea';
+                            this.ctx.fillRect(
+                                col * this.cellSize + 1,
+                                row * this.cellSize + 1,
+                                this.cellSize - 2,
+                                this.cellSize - 2
+                            );
+                        }
+                    }
+                }
+            }
+
+            countNeighbors(row, col) {
+                let count = 0;
+
+                for (let i = -1; i <= 1; i++) {
+                    for (let j = -1; j <= 1; j++) {
+                        if (i === 0 && j === 0) continue;
+
+                        const newRow = row + i;
+                        const newCol = col + j;
+
+                        if (newRow >= 0 && newRow < this.rows &&
+                            newCol >= 0 && newCol < this.cols) {
+                            if (this.grid[newRow][newCol]) {
+                                count++;
+                            }
+                        }
+                    }
+                }
+
+                return count;
+            }
+
+            step() {
+                const newGrid = this.createGrid();
+
+                for (let row = 0; row < this.rows; row++) {
+                    for (let col = 0; col < this.cols; col++) {
+                        const neighbors = this.countNeighbors(row, col);
+                        const cell = this.grid[row][col];
+
+                        // Conway's Game of Life rules:
+                        // 1. Any live cell with 2-3 neighbors survives
+                        // 2. Any dead cell with exactly 3 neighbors becomes alive
+                        // 3. All other cells die or stay dead
+
+                        if (cell && (neighbors === 2 || neighbors === 3)) {
+                            newGrid[row][col] = true;
+                        } else if (!cell && neighbors === 3) {
+                            newGrid[row][col] = true;
+                        }
+                    }
+                }
+
+                this.grid = newGrid;
+                this.generation++;
+                this.updateGenerationDisplay();
+                this.draw();
+            }
+
+            start() {
+                if (this.running) return;
+                this.running = true;
+                this.animate();
+            }
+
+            stop() {
+                this.running = false;
+            }
+
+            animate() {
+                if (!this.running) return;
+
+                this.step();
+
+                setTimeout(() => {
+                    requestAnimationFrame(() => this.animate());
+                }, 1000 / this.speed);
+            }
+
+            clear() {
+                this.grid = this.createGrid();
+                this.generation = 0;
+                this.updateGenerationDisplay();
+                this.draw();
+            }
+
+            randomize() {
+                for (let row = 0; row < this.rows; row++) {
+                    for (let col = 0; col < this.cols; col++) {
+                        this.grid[row][col] = Math.random() > 0.7;
+                    }
+                }
+                this.generation = 0;
+                this.updateGenerationDisplay();
+                this.draw();
+            }
+
+            setSpeed(speed) {
+                this.speed = speed;
+            }
+
+            updateGenerationDisplay() {
+                document.getElementById('generation').textContent = this.generation;
+            }
+        }
+
+        // Initialize the game
+        const game = new GameOfLife('gameCanvas', 50, 70, 10);
+
+        // Button controls
+        const startBtn = document.getElementById('startBtn');
+        const stepBtn = document.getElementById('stepBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const randomBtn = document.getElementById('randomBtn');
+        const speedRange = document.getElementById('speedRange');
+        const speedValue = document.getElementById('speedValue');
+
+        startBtn.addEventListener('click', () => {
+            if (game.running) {
+                game.stop();
+                startBtn.textContent = 'Start';
+            } else {
+                game.start();
+                startBtn.textContent = 'Stop';
+            }
+        });
+
+        stepBtn.addEventListener('click', () => {
+            if (!game.running) {
+                game.step();
+            }
+        });
+
+        clearBtn.addEventListener('click', () => {
+            game.stop();
+            game.clear();
+            startBtn.textContent = 'Start';
+        });
+
+        randomBtn.addEventListener('click', () => {
+            game.randomize();
+        });
+
+        speedRange.addEventListener('input', (e) => {
+            const speed = parseInt(e.target.value);
+            game.setSpeed(speed);
+            speedValue.textContent = speed;
+        });
+    </script>
+</body>
+</html>
