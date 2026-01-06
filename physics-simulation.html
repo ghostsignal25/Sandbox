@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Physics Simulation - Ball Box</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 900px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 2em;
+        }
+
+        #renderCanvas {
+            border: 3px solid #333;
+            border-radius: 10px;
+            display: block;
+            margin: 0 auto 20px;
+            background: #1a1a2e;
+            cursor: grab;
+        }
+
+        #renderCanvas:active {
+            cursor: grabbing;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .control-group {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #dee2e6;
+        }
+
+        .control-group label {
+            display: block;
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+        }
+
+        .control-group input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: #dee2e6;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .control-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+        }
+
+        .control-group input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: none;
+        }
+
+        .control-group .value-display {
+            text-align: center;
+            font-weight: bold;
+            color: #667eea;
+            margin-top: 5px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 1em;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .flip-btn {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .shake-btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .reset-btn {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+
+        .legend {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #dee2e6;
+        }
+
+        .legend h3 {
+            margin-bottom: 10px;
+            color: #495057;
+            font-size: 1em;
+        }
+
+        .legend-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 10px;
+            background: white;
+            border-radius: 5px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid #333;
+        }
+
+        .legend-text {
+            font-size: 0.85em;
+            color: #495057;
+        }
+
+        .info {
+            text-align: center;
+            color: #6c757d;
+            font-size: 0.9em;
+            margin-top: 15px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎱 Physics Simulation - Ball Box</h1>
+
+        <canvas id="renderCanvas"></canvas>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="gravitySlider">Gravity Strength</label>
+                <input type="range" id="gravitySlider" min="0" max="2" step="0.1" value="1">
+                <div class="value-display" id="gravityValue">1.0x</div>
+            </div>
+        </div>
+
+        <div class="button-group">
+            <button class="flip-btn" id="flipBtn">🔄 Flip Box</button>
+            <button class="shake-btn" id="shakeBtn">📳 Shake Box</button>
+            <button class="reset-btn" id="resetBtn">🔄 Reset</button>
+        </div>
+
+        <div class="legend">
+            <h3>Ball Density Legend:</h3>
+            <div class="legend-items">
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #ff6b6b;"></div>
+                    <span class="legend-text">Low Density (0.001)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #4ecdc4;"></div>
+                    <span class="legend-text">Medium Density (0.003)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #45b7d1;"></div>
+                    <span class="legend-text">High Density (0.005)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #f9ca24;"></div>
+                    <span class="legend-text">Very High Density (0.008)</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="info">
+            💡 Drag balls to move them around • Click buttons to interact with the box
+        </div>
+    </div>
+
+    <script>
+        // Matter.js module aliases
+        const Engine = Matter.Engine,
+              Render = Matter.Render,
+              Runner = Matter.Runner,
+              Bodies = Matter.Bodies,
+              Composite = Matter.Composite,
+              Mouse = Matter.Mouse,
+              MouseConstraint = Matter.MouseConstraint,
+              Events = Matter.Events,
+              Body = Matter.Body;
+
+        // Create engine
+        const engine = Engine.create();
+        const world = engine.world;
+
+        // Canvas dimensions
+        const canvasWidth = 800;
+        const canvasHeight = 600;
+
+        // Create renderer
+        const render = Render.create({
+            canvas: document.getElementById('renderCanvas'),
+            engine: engine,
+            options: {
+                width: canvasWidth,
+                height: canvasHeight,
+                wireframes: false,
+                background: '#1a1a2e'
+            }
+        });
+
+        Render.run(render);
+        const runner = Runner.create();
+        Runner.run(runner, engine);
+
+        // Web Audio API setup for sound effects
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playCollisionSound(velocity, isMetalCollision) {
+            const volume = Math.min(velocity / 10, 1);
+            if (volume < 0.1) return; // Don't play very quiet sounds
+
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            if (isMetalCollision) {
+                // Metal sound: higher frequency, sharper decay
+                oscillator.frequency.value = 200 + Math.random() * 300;
+                oscillator.type = 'triangle';
+                gainNode.gain.setValueAtTime(volume * 0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.1);
+            } else {
+                // Plastic sound: lower frequency, duller
+                oscillator.frequency.value = 100 + Math.random() * 150;
+                oscillator.type = 'sine';
+                gainNode.gain.setValueAtTime(volume * 0.2, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.15);
+            }
+        }
+
+        // Box configuration
+        const wallThickness = 10;
+        const boxWidth = 600;
+        const boxHeight = 400;
+        const boxX = canvasWidth / 2;
+        const boxY = canvasHeight / 2;
+
+        // Create box walls (semi-transparent metal box)
+        const wallOptions = {
+            isStatic: true,
+            friction: 0.3,
+            restitution: 0.6,
+            render: {
+                fillStyle: '#95a5a6',
+                strokeStyle: '#7f8c8d',
+                lineWidth: 2,
+                opacity: 0.7
+            },
+            label: 'wall'
+        };
+
+        const ground = Bodies.rectangle(boxX, boxY + boxHeight / 2, boxWidth, wallThickness, wallOptions);
+        const ceiling = Bodies.rectangle(boxX, boxY - boxHeight / 2, boxWidth, wallThickness, wallOptions);
+        const leftWall = Bodies.rectangle(boxX - boxWidth / 2, boxY, wallThickness, boxHeight, wallOptions);
+        const rightWall = Bodies.rectangle(boxX + boxWidth / 2, boxY, wallThickness, boxHeight, wallOptions);
+
+        const walls = [ground, ceiling, leftWall, rightWall];
+        Composite.add(world, walls);
+
+        // Ball configurations (density-based color coding)
+        const ballConfigs = [
+            { radius: 30, density: 0.001, color: '#ff6b6b', label: 'low' },      // Red - Low density
+            { radius: 25, density: 0.003, color: '#4ecdc4', label: 'medium' },   // Teal - Medium density
+            { radius: 35, density: 0.005, color: '#45b7d1', label: 'high' },     // Blue - High density
+            { radius: 20, density: 0.008, color: '#f9ca24', label: 'vhigh' }     // Yellow - Very high density
+        ];
+
+        let balls = [];
+
+        function createBalls() {
+            balls.forEach(ball => Composite.remove(world, ball));
+            balls = [];
+
+            // Create multiple balls of each type
+            for (let i = 0; i < 5; i++) {
+                ballConfigs.forEach((config, index) => {
+                    const x = boxX - boxWidth / 2 + 100 + (i * 100) + (index * 30);
+                    const y = boxY - boxHeight / 2 + 100 + (index * 60);
+
+                    const ball = Bodies.circle(x, y, config.radius, {
+                        density: config.density,
+                        friction: 0.3,
+                        restitution: 0.8,
+                        render: {
+                            fillStyle: config.color,
+                            strokeStyle: '#333',
+                            lineWidth: 2
+                        },
+                        label: 'ball_' + config.label
+                    });
+
+                    balls.push(ball);
+                    Composite.add(world, ball);
+                });
+            }
+        }
+
+        createBalls();
+
+        // Mouse control for dragging balls
+        const mouse = Mouse.create(render.canvas);
+        const mouseConstraint = MouseConstraint.create(engine, {
+            mouse: mouse,
+            constraint: {
+                stiffness: 0.2,
+                render: {
+                    visible: false
+                }
+            }
+        });
+
+        Composite.add(world, mouseConstraint);
+        render.mouse = mouse;
+
+        // Collision detection for sound effects
+        Events.on(engine, 'collisionStart', (event) => {
+            event.pairs.forEach((pair) => {
+                const { bodyA, bodyB } = pair;
+                const velocity = Math.abs(bodyA.velocity.x) + Math.abs(bodyA.velocity.y) +
+                                Math.abs(bodyB.velocity.x) + Math.abs(bodyB.velocity.y);
+
+                const isWallCollision = bodyA.label.includes('wall') || bodyB.label.includes('wall');
+                const isBallCollision = bodyA.label.includes('ball') && bodyB.label.includes('ball');
+
+                if (isWallCollision) {
+                    playCollisionSound(velocity, true); // Metal sound for wall collision
+                } else if (isBallCollision) {
+                    playCollisionSound(velocity, false); // Plastic sound for ball-ball collision
+                }
+            });
+        });
+
+        // Gravity control
+        const gravitySlider = document.getElementById('gravitySlider');
+        const gravityValue = document.getElementById('gravityValue');
+
+        gravitySlider.addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            engine.world.gravity.y = value;
+            gravityValue.textContent = value.toFixed(1) + 'x';
+        });
+
+        // Flip box function
+        let flipped = false;
+        document.getElementById('flipBtn').addEventListener('click', () => {
+            flipped = !flipped;
+
+            // Animate the flip by rotating the world
+            const targetGravity = flipped ? -Math.abs(engine.world.gravity.y) : Math.abs(engine.world.gravity.y);
+            engine.world.gravity.y = targetGravity;
+
+            // Apply impulse to balls to simulate the flip
+            balls.forEach(ball => {
+                Body.applyForce(ball, ball.position, {
+                    x: (Math.random() - 0.5) * 0.02,
+                    y: flipped ? -0.05 : 0.05
+                });
+            });
+
+            // Visual feedback
+            const btn = document.getElementById('flipBtn');
+            btn.style.transform = 'rotate(180deg)';
+            setTimeout(() => {
+                btn.style.transform = 'rotate(0deg)';
+            }, 300);
+        });
+
+        // Shake box function
+        document.getElementById('shakeBtn').addEventListener('click', () => {
+            const shakeIntensity = 0.05;
+            const shakeDuration = 500;
+            const shakeInterval = 50;
+            let shakeCount = 0;
+            const maxShakes = shakeDuration / shakeInterval;
+
+            const shakeTimer = setInterval(() => {
+                balls.forEach(ball => {
+                    Body.applyForce(ball, ball.position, {
+                        x: (Math.random() - 0.5) * shakeIntensity,
+                        y: (Math.random() - 0.5) * shakeIntensity
+                    });
+                });
+
+                // Shake the walls slightly (visual effect)
+                walls.forEach(wall => {
+                    Body.setPosition(wall, {
+                        x: wall.position.x + (Math.random() - 0.5) * 5,
+                        y: wall.position.y + (Math.random() - 0.5) * 5
+                    });
+                });
+
+                shakeCount++;
+                if (shakeCount >= maxShakes) {
+                    clearInterval(shakeTimer);
+                    // Reset wall positions
+                    Body.setPosition(ground, { x: boxX, y: boxY + boxHeight / 2 });
+                    Body.setPosition(ceiling, { x: boxX, y: boxY - boxHeight / 2 });
+                    Body.setPosition(leftWall, { x: boxX - boxWidth / 2, y: boxY });
+                    Body.setPosition(rightWall, { x: boxX + boxWidth / 2, y: boxY });
+                }
+            }, shakeInterval);
+
+            // Visual feedback
+            const btn = document.getElementById('shakeBtn');
+            btn.style.animation = 'shake 0.5s';
+            setTimeout(() => {
+                btn.style.animation = '';
+            }, 500);
+        });
+
+        // Reset function
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            // Reset gravity
+            engine.world.gravity.y = 1;
+            gravitySlider.value = 1;
+            gravityValue.textContent = '1.0x';
+            flipped = false;
+
+            // Reset ball positions
+            createBalls();
+        });
+
+        // Add shake animation to CSS dynamically
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes shake {
+                0%, 100% { transform: translateX(0); }
+                25% { transform: translateX(-5px); }
+                75% { transform: translateX(5px); }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Prevent balls from escaping by checking boundaries
+        Events.on(engine, 'afterUpdate', () => {
+            balls.forEach(ball => {
+                const minX = boxX - boxWidth / 2 + ball.circleRadius + wallThickness;
+                const maxX = boxX + boxWidth / 2 - ball.circleRadius - wallThickness;
+                const minY = boxY - boxHeight / 2 + ball.circleRadius + wallThickness;
+                const maxY = boxY + boxHeight / 2 - ball.circleRadius - wallThickness;
+
+                if (ball.position.x < minX || ball.position.x > maxX ||
+                    ball.position.y < minY || ball.position.y > maxY) {
+                    Body.setPosition(ball, {
+                        x: Math.max(minX, Math.min(maxX, ball.position.x)),
+                        y: Math.max(minY, Math.min(maxY, ball.position.y))
+                    });
+                    Body.setVelocity(ball, { x: 0, y: 0 });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
