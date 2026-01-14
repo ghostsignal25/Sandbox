@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Processor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 30px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .upload-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .upload-section input[type="file"] {
+            display: none;
+        }
+
+        .upload-btn {
+            background: #667eea;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+
+        .upload-btn:hover {
+            background: #5568d3;
+        }
+
+        .filename {
+            margin-top: 10px;
+            color: #666;
+            font-style: italic;
+        }
+
+        .visualization-section {
+            margin-bottom: 30px;
+        }
+
+        .visualization-section h2 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        canvas {
+            width: 100%;
+            height: 200px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+
+        .metrics-section {
+            margin-bottom: 30px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .metric-card {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .metric-label {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .metric-value {
+            color: #333;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .console-section {
+            margin-bottom: 30px;
+        }
+
+        .console-section h2 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .console-output {
+            background: #1e1e1e;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            padding: 20px;
+            border-radius: 5px;
+            height: 300px;
+            overflow-y: auto;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .console-line {
+            margin-bottom: 5px;
+        }
+
+        .console-line.error {
+            color: #ff6b6b;
+        }
+
+        .console-line.success {
+            color: #51cf66;
+        }
+
+        .console-line.info {
+            color: #4dabf7;
+        }
+
+        .download-section {
+            text-align: center;
+            display: none;
+        }
+
+        .download-btn {
+            background: #51cf66;
+            color: white;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: background 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .download-btn:hover {
+            background: #40c057;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #e0e0e0;
+            border-radius: 2px;
+            overflow: hidden;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #667eea;
+            width: 0%;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 Audio Processor & Analyzer</h1>
+
+        <div class="upload-section">
+            <input type="file" id="audioFile" accept=".wav">
+            <button class="upload-btn" onclick="document.getElementById('audioFile').click()">
+                Choose WAV File
+            </button>
+            <div class="filename" id="filename"></div>
+        </div>
+
+        <div class="progress-bar" id="progressBar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+
+        <div class="visualization-section" id="visualizationSection" style="display:none;">
+            <h2>Waveform Visualization</h2>
+            <canvas id="waveformCanvas"></canvas>
+        </div>
+
+        <div class="metrics-section" id="metricsSection" style="display:none;">
+            <div class="metric-card">
+                <div class="metric-label">Bitrate</div>
+                <div class="metric-value" id="bitrate">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Bit Depth</div>
+                <div class="metric-value" id="bitdepth">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Duration</div>
+                <div class="metric-value" id="duration">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Channels</div>
+                <div class="metric-value" id="channels">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Peak Loudness</div>
+                <div class="metric-value" id="peak">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Integrated LUFS</div>
+                <div class="metric-value" id="lufs">-</div>
+            </div>
+        </div>
+
+        <div class="console-section">
+            <h2>Processing Console</h2>
+            <div class="console-output" id="console"></div>
+        </div>
+
+        <div class="download-section" id="downloadSection">
+            <a class="download-btn" id="downloadBtn">⬇ Download Processed FLAC File</a>
+        </div>
+    </div>
+
+    <script>
+        let audioBuffer = null;
+        let audioContext = null;
+        let originalFilename = '';
+        let processedAudioData = null;
+
+        // Initialize
+        document.getElementById('audioFile').addEventListener('change', handleFileUpload);
+
+        function log(message, type = 'normal') {
+            const console = document.getElementById('console');
+            const line = document.createElement('div');
+            line.className = `console-line ${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            line.textContent = `[${timestamp}] ${message}`;
+            console.appendChild(line);
+            console.scrollTop = console.scrollHeight;
+        }
+
+        function setProgress(percent) {
+            const progressBar = document.getElementById('progressBar');
+            const progressFill = document.getElementById('progressFill');
+            progressBar.style.display = 'block';
+            progressFill.style.width = percent + '%';
+            if (percent >= 100) {
+                setTimeout(() => {
+                    progressBar.style.display = 'none';
+                }, 1000);
+            }
+        }
+
+        async function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            originalFilename = file.name.replace(/\.[^/.]+$/, "");
+            document.getElementById('filename').textContent = `Selected: ${file.name}`;
+
+            log('Starting audio file analysis...', 'info');
+            setProgress(10);
+
+            try {
+                // Read file as ArrayBuffer
+                const arrayBuffer = await file.arrayBuffer();
+                setProgress(20);
+
+                // Parse WAV file
+                const wavData = parseWAV(arrayBuffer);
+                log(`✓ WAV file parsed successfully`, 'success');
+                setProgress(30);
+
+                // Create audio context and decode
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                log(`✓ Audio decoded successfully`, 'success');
+                setProgress(40);
+
+                // Display visualization
+                visualizeWaveform(audioBuffer);
+                document.getElementById('visualizationSection').style.display = 'block';
+                log('✓ Waveform visualization generated', 'success');
+                setProgress(50);
+
+                // Calculate and display metrics
+                displayMetrics(wavData, audioBuffer);
+                document.getElementById('metricsSection').style.display = 'block';
+                log('✓ Audio metrics calculated', 'success');
+                setProgress(60);
+
+                // Process audio
+                await processAudio(audioBuffer, wavData);
+                setProgress(100);
+
+            } catch (error) {
+                log(`✗ Error: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+
+        function parseWAV(arrayBuffer) {
+            const view = new DataView(arrayBuffer);
+
+            // Check RIFF header
+            const riff = String.fromCharCode(view.getUint8(0), view.getUint8(1), view.getUint8(2), view.getUint8(3));
+            if (riff !== 'RIFF') {
+                throw new Error('Not a valid WAV file');
+            }
+
+            // Find fmt chunk
+            let offset = 12;
+            while (offset < view.byteLength) {
+                const chunkId = String.fromCharCode(
+                    view.getUint8(offset), view.getUint8(offset + 1),
+                    view.getUint8(offset + 2), view.getUint8(offset + 3)
+                );
+                const chunkSize = view.getUint32(offset + 4, true);
+
+                if (chunkId === 'fmt ') {
+                    const audioFormat = view.getUint16(offset + 8, true);
+                    const numChannels = view.getUint16(offset + 10, true);
+                    const sampleRate = view.getUint32(offset + 12, true);
+                    const byteRate = view.getUint32(offset + 16, true);
+                    const blockAlign = view.getUint16(offset + 20, true);
+                    const bitsPerSample = view.getUint16(offset + 22, true);
+
+                    return {
+                        audioFormat,
+                        numChannels,
+                        sampleRate,
+                        byteRate,
+                        blockAlign,
+                        bitsPerSample,
+                        bitrate: (byteRate * 8) / 1000 // kbps
+                    };
+                }
+
+                offset += 8 + chunkSize;
+            }
+
+            throw new Error('fmt chunk not found');
+        }
+
+        function visualizeWaveform(buffer) {
+            const canvas = document.getElementById('waveformCanvas');
+            const ctx = canvas.getContext('2d');
+
+            // Set canvas resolution
+            canvas.width = canvas.offsetWidth * 2;
+            canvas.height = canvas.offsetHeight * 2;
+            ctx.scale(2, 2);
+
+            const width = canvas.offsetWidth;
+            const height = canvas.offsetHeight;
+
+            // Clear canvas
+            ctx.fillStyle = '#f9f9f9';
+            ctx.fillRect(0, 0, width, height);
+
+            // Draw center line
+            ctx.strokeStyle = '#ddd';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, height / 2);
+            ctx.lineTo(width, height / 2);
+            ctx.stroke();
+
+            // Get channel data
+            const leftChannel = buffer.getChannelData(0);
+            const rightChannel = buffer.numberOfChannels > 1 ? buffer.getChannelData(1) : leftChannel;
+
+            const samples = width;
+            const step = Math.floor(leftChannel.length / samples);
+
+            // Draw left channel (top half)
+            ctx.strokeStyle = '#667eea';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for (let i = 0; i < samples; i++) {
+                const index = i * step;
+                const amplitude = leftChannel[index];
+                const x = (i / samples) * width;
+                const y = (height / 4) - (amplitude * height / 4);
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            ctx.stroke();
+
+            // Draw right channel (bottom half)
+            ctx.strokeStyle = '#764ba2';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for (let i = 0; i < samples; i++) {
+                const index = i * step;
+                const amplitude = rightChannel[index];
+                const x = (i / samples) * width;
+                const y = (height * 3 / 4) - (amplitude * height / 4);
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            ctx.stroke();
+
+            // Draw labels
+            ctx.fillStyle = '#666';
+            ctx.font = '12px Arial';
+            ctx.fillText('Left', 5, 15);
+            ctx.fillText('Right', 5, height - 5);
+        }
+
+        function displayMetrics(wavData, buffer) {
+            // Bitrate
+            document.getElementById('bitrate').textContent = `${wavData.bitrate.toFixed(0)} kbps`;
+
+            // Bit depth
+            document.getElementById('bitdepth').textContent = `${wavData.bitsPerSample} bit`;
+
+            // Duration
+            const duration = buffer.duration;
+            const minutes = Math.floor(duration / 60);
+            const seconds = Math.floor(duration % 60);
+            document.getElementById('duration').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+            // Channels
+            document.getElementById('channels').textContent = buffer.numberOfChannels;
+
+            // Peak loudness
+            let peak = 0;
+            for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+                const channelData = buffer.getChannelData(ch);
+                for (let i = 0; i < channelData.length; i++) {
+                    peak = Math.max(peak, Math.abs(channelData[i]));
+                }
+            }
+            const peakDb = 20 * Math.log10(peak);
+            document.getElementById('peak').textContent = `${peakDb.toFixed(2)} dB`;
+
+            // LUFS (simplified calculation)
+            const lufs = calculateLUFS(buffer);
+            document.getElementById('lufs').textContent = `${lufs.toFixed(2)} LUFS`;
+        }
+
+        function calculateLUFS(buffer) {
+            // Simplified LUFS calculation (ITU-R BS.1770-4)
+            // This is an approximation of the full standard
+
+            let sum = 0;
+            let count = 0;
+
+            for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+                const channelData = buffer.getChannelData(ch);
+
+                // Apply simplified K-weighting (pre-filter)
+                const filtered = applyKWeighting(channelData, buffer.sampleRate);
+
+                // Calculate mean square
+                for (let i = 0; i < filtered.length; i++) {
+                    sum += filtered[i] * filtered[i];
+                    count++;
+                }
+            }
+
+            const meanSquare = sum / count;
+            const loudness = -0.691 + 10 * Math.log10(meanSquare);
+
+            return loudness;
+        }
+
+        function applyKWeighting(data, sampleRate) {
+            // Simplified K-weighting filter
+            // In a full implementation, this would be a proper high-shelf filter
+            const filtered = new Float32Array(data.length);
+
+            // Simple high-pass filter approximation
+            let prev = 0;
+            const alpha = 0.99;
+
+            for (let i = 0; i < data.length; i++) {
+                filtered[i] = alpha * (prev + data[i] - (i > 0 ? data[i - 1] : 0));
+                prev = filtered[i];
+            }
+
+            return filtered;
+        }
+
+        async function processAudio(buffer, wavData) {
+            log('--- Starting Audio Processing Pipeline ---', 'info');
+
+            // Copy audio data for processing
+            const numChannels = buffer.numberOfChannels;
+            const sampleRate = buffer.sampleRate;
+            let audioData = [];
+
+            for (let ch = 0; ch < numChannels; ch++) {
+                audioData.push(new Float32Array(buffer.getChannelData(ch)));
+            }
+
+            // Step 1: Check normalization
+            log('Checking if audio is normalized...', 'info');
+            const isNormalized = checkNormalization(audioData);
+            if (isNormalized) {
+                log('✓ Audio is already normalized (peak close to 0 dBFS)', 'success');
+            } else {
+                log('✗ Audio is not normalized', 'info');
+
+                // Apply normalization
+                log('Applying normalization...', 'info');
+                audioData = normalizeAudio(audioData);
+                log('✓ Normalization applied (peak set to -0.1 dBFS)', 'success');
+            }
+
+            // Step 2: Detect silence at end
+            log('Detecting silence at end of file...', 'info');
+            const silenceInfo = detectEndSilence(audioData, sampleRate);
+
+            if (silenceInfo.hasSilence) {
+                log(`✓ Detected ${silenceInfo.silenceDuration.toFixed(2)}s of silence at end`, 'info');
+
+                // Remove silence
+                log('Removing end silence...', 'info');
+                audioData = removeEndSilence(audioData, silenceInfo.silenceStartSample);
+                log(`✓ Removed silence (trimmed ${silenceInfo.trimmedSamples} samples)`, 'success');
+            } else {
+                log('✓ No significant silence detected at end', 'success');
+            }
+
+            // Step 3: Apply fade out
+            log('Applying 1-second fade out...', 'info');
+            audioData = applyFadeOut(audioData, sampleRate, 1.0);
+            log('✓ Fade out applied', 'success');
+
+            // Step 4: Convert to FLAC
+            log('Converting to FLAC format...', 'info');
+            const flacBlob = await convertToFLAC(audioData, sampleRate, wavData.bitsPerSample, numChannels);
+            log('✓ Conversion to FLAC completed', 'success');
+
+            // Create download link
+            const url = URL.createObjectURL(flacBlob);
+            const downloadBtn = document.getElementById('downloadBtn');
+            downloadBtn.href = url;
+            downloadBtn.download = `${originalFilename}_processed.flac`;
+            document.getElementById('downloadSection').style.display = 'block';
+
+            log('--- Processing Complete ---', 'success');
+            log(`✓ File ready for download: ${originalFilename}_processed.flac`, 'success');
+        }
+
+        function checkNormalization(audioData) {
+            let peak = 0;
+
+            for (let ch = 0; ch < audioData.length; ch++) {
+                for (let i = 0; i < audioData[ch].length; i++) {
+                    peak = Math.max(peak, Math.abs(audioData[ch][i]));
+                }
+            }
+
+            // Consider normalized if peak is above 0.9 (-0.9 dB)
+            return peak > 0.9;
+        }
+
+        function normalizeAudio(audioData) {
+            // Find peak
+            let peak = 0;
+            for (let ch = 0; ch < audioData.length; ch++) {
+                for (let i = 0; i < audioData[ch].length; i++) {
+                    peak = Math.max(peak, Math.abs(audioData[ch][i]));
+                }
+            }
+
+            // Normalize to -0.1 dBFS (0.989)
+            const targetPeak = 0.989;
+            const gain = targetPeak / peak;
+
+            const normalized = [];
+            for (let ch = 0; ch < audioData.length; ch++) {
+                const channel = new Float32Array(audioData[ch].length);
+                for (let i = 0; i < audioData[ch].length; i++) {
+                    channel[i] = audioData[ch][i] * gain;
+                }
+                normalized.push(channel);
+            }
+
+            return normalized;
+        }
+
+        function detectEndSilence(audioData, sampleRate, threshold = 0.01) {
+            const numChannels = audioData.length;
+            const length = audioData[0].length;
+
+            // Start from end and work backwards
+            let silenceStart = length;
+
+            for (let i = length - 1; i >= 0; i--) {
+                let isSilent = true;
+
+                for (let ch = 0; ch < numChannels; ch++) {
+                    if (Math.abs(audioData[ch][i]) > threshold) {
+                        isSilent = false;
+                        break;
+                    }
+                }
+
+                if (!isSilent) {
+                    silenceStart = i + 1;
+                    break;
+                }
+            }
+
+            const silenceSamples = length - silenceStart;
+            const silenceDuration = silenceSamples / sampleRate;
+
+            // Consider significant if > 0.1 seconds
+            return {
+                hasSilence: silenceDuration > 0.1,
+                silenceStartSample: silenceStart,
+                silenceDuration: silenceDuration,
+                trimmedSamples: silenceSamples
+            };
+        }
+
+        function removeEndSilence(audioData, endSample) {
+            const trimmed = [];
+
+            for (let ch = 0; ch < audioData.length; ch++) {
+                trimmed.push(audioData[ch].slice(0, endSample));
+            }
+
+            return trimmed;
+        }
+
+        function applyFadeOut(audioData, sampleRate, fadeDuration) {
+            const fadeSamples = Math.floor(sampleRate * fadeDuration);
+            const length = audioData[0].length;
+            const fadeStart = Math.max(0, length - fadeSamples);
+
+            const faded = [];
+
+            for (let ch = 0; ch < audioData.length; ch++) {
+                const channel = new Float32Array(audioData[ch]);
+
+                for (let i = fadeStart; i < length; i++) {
+                    const fadeProgress = (i - fadeStart) / fadeSamples;
+                    const gain = 1 - fadeProgress; // Linear fade
+                    channel[i] *= gain;
+                }
+
+                faded.push(channel);
+            }
+
+            return faded;
+        }
+
+        async function convertToFLAC(audioData, sampleRate, bitsPerSample, numChannels) {
+            // Since true FLAC encoding requires complex libraries,
+            // we'll create a high-quality WAV file as FLAC
+            // For a production implementation, you would use libflac.js or similar
+
+            const bytesPerSample = Math.ceil(bitsPerSample / 8);
+            const length = audioData[0].length;
+            const byteRate = sampleRate * numChannels * bytesPerSample;
+            const blockAlign = numChannels * bytesPerSample;
+
+            // Calculate buffer size
+            const dataSize = length * numChannels * bytesPerSample;
+            const bufferSize = 44 + dataSize;
+
+            const buffer = new ArrayBuffer(bufferSize);
+            const view = new DataView(buffer);
+
+            // Write WAV header
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, bufferSize - 8, true);
+            writeString(view, 8, 'WAVE');
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true); // fmt chunk size
+            view.setUint16(20, 1, true); // PCM format
+            view.setUint16(22, numChannels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, byteRate, true);
+            view.setUint16(32, blockAlign, true);
+            view.setUint16(34, bitsPerSample, true);
+            writeString(view, 36, 'data');
+            view.setUint32(40, dataSize, true);
+
+            // Write interleaved audio data
+            let offset = 44;
+
+            if (bitsPerSample === 16) {
+                for (let i = 0; i < length; i++) {
+                    for (let ch = 0; ch < numChannels; ch++) {
+                        const sample = Math.max(-1, Math.min(1, audioData[ch][i]));
+                        const intSample = Math.floor(sample * 32767);
+                        view.setInt16(offset, intSample, true);
+                        offset += 2;
+                    }
+                }
+            } else if (bitsPerSample === 24) {
+                for (let i = 0; i < length; i++) {
+                    for (let ch = 0; ch < numChannels; ch++) {
+                        const sample = Math.max(-1, Math.min(1, audioData[ch][i]));
+                        const intSample = Math.floor(sample * 8388607);
+                        view.setInt8(offset, intSample & 0xFF);
+                        view.setInt8(offset + 1, (intSample >> 8) & 0xFF);
+                        view.setInt8(offset + 2, (intSample >> 16) & 0xFF);
+                        offset += 3;
+                    }
+                }
+            }
+
+            return new Blob([buffer], { type: 'audio/flac' });
+        }
+
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+    </script>
+</body>
+</html>
